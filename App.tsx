@@ -384,7 +384,6 @@ const App: React.FC = () => {
                                             <input type="text" defaultValue={invoice.exchangeRate.toString().replace('.', ',')} onBlur={e => setInvoice(prev => ({...prev, exchangeRate: normalizeNum(e.target.value)}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none font-semibold" />
                                         </div>
                                     </div>
-                                    {/* ENHANCED MATRICULE FIELD: Increased width ratio and padding */}
                                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 md:col-span-3 lg:col-span-2">
                                         <div className="sm:col-span-4 space-y-1">
                                             <div className="flex justify-between items-center">
