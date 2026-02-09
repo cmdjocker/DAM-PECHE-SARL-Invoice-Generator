@@ -384,9 +384,9 @@ const App: React.FC = () => {
                                             <input type="text" defaultValue={invoice.exchangeRate.toString().replace('.', ',')} onBlur={e => setInvoice(prev => ({...prev, exchangeRate: normalizeNum(e.target.value)}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none font-semibold" />
                                         </div>
                                     </div>
-                                    {/* ADJUSTED GRID FOR MATRICULE SPACE */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:col-span-3 lg:col-span-2">
-                                        <div className="sm:col-span-1 space-y-1">
+                                    {/* ENHANCED MATRICULE FIELD: Increased width ratio and padding */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 md:col-span-3 lg:col-span-2">
+                                        <div className="sm:col-span-4 space-y-1">
                                             <div className="flex justify-between items-center">
                                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Transport</label>
                                                 <button onClick={() => setModalMode('transport')} className="text-[10px] text-indigo-600 font-black hover:underline">MODIFIER</button>
@@ -395,9 +395,15 @@ const App: React.FC = () => {
                                                 {transports.map(t => <option key={t} value={t}>{t}</option>)}
                                             </select>
                                         </div>
-                                        <div className="sm:col-span-2 space-y-1">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter text-indigo-600">Matricule</label>
-                                            <input type="text" placeholder="Matricule Camion" value={invoice.trailer} onChange={e => setInvoice(prev => ({...prev, trailer: e.target.value}))} className="w-full px-6 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-500 outline-none font-black text-xl text-indigo-900 placeholder:font-normal placeholder:text-slate-300 shadow-sm" />
+                                        <div className="sm:col-span-8 space-y-1">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter text-indigo-600">Matricule (Très Large)</label>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Ex: 18905 B 40 / 6962 08" 
+                                                value={invoice.trailer} 
+                                                onChange={e => setInvoice(prev => ({...prev, trailer: e.target.value}))} 
+                                                className="w-full px-6 py-3 border-2 border-indigo-200 rounded-xl focus:border-indigo-600 outline-none font-black text-2xl text-indigo-900 placeholder:font-normal placeholder:text-slate-300 shadow-sm bg-indigo-50/30" 
+                                            />
                                         </div>
                                     </div>
                                 </div>
