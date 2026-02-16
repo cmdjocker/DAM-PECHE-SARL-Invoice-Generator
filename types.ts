@@ -36,6 +36,8 @@ export interface InvoiceData {
   // New fields for transport invoice
   transportInvoiceNumber?: string;
   transportAmount?: number;
+  // Manual field for Note d'embarquement
+  noteChargeur?: string;
 }
 
 export interface AIParsedItem {

@@ -21,7 +21,8 @@ import {
     RotateCcw,
     FileSignature,
     Euro,
-    FileDigit
+    FileDigit,
+    UserCircle
 } from 'lucide-react';
 import { 
     DEFAULT_PRODUCTS, 
@@ -75,7 +76,8 @@ const App: React.FC = () => {
         incoterm: 'FOB',
         items: [],
         transportInvoiceNumber: '',
-        transportAmount: 0
+        transportAmount: 0,
+        noteChargeur: ''
     });
 
     const [products, setProducts] = useState<Product[]>(() => {
@@ -666,6 +668,28 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
+                        {isValidated && (
+                            <div className="no-print flex justify-center">
+                                <div className="bg-white p-6 rounded-2xl shadow-md border-t-8 border-blue-600 w-full max-w-2xl space-y-4">
+                                    <div className="flex items-center gap-3 text-blue-800 font-black uppercase tracking-widest text-sm">
+                                        <UserCircle className="w-5 h-5 text-blue-500" />
+                                        Configuration Spécifique Note
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Cargador o Agente de Aduanas (Chargeur ou transitaire)</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Saisie manuelle pour la note..." 
+                                            value={invoice.noteChargeur} 
+                                            onChange={e => setInvoice(prev => ({...prev, noteChargeur: e.target.value}))} 
+                                            className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none font-bold text-lg text-slate-800 placeholder:font-normal placeholder:text-slate-300 shadow-sm"
+                                        />
+                                        <p className="text-[10px] text-slate-400 font-medium">Laisse vide pour utiliser le transporteur par défaut : {invoice.transport}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {!isValidated ? (
                             <div className="bg-yellow-50 border-2 border-yellow-200 p-10 rounded-3xl text-center space-y-4 no-print">
                                 <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto" />
@@ -714,7 +738,7 @@ const App: React.FC = () => {
                                             </div>
                                             <div className="p-4 flex flex-col flex-1 justify-center text-center relative">
                                                 <p className="text-[10px] font-bold absolute top-1 left-2">Cargador o Agente de Aduanas (Chargeur ou transitaire)</p>
-                                                <p className="text-xl font-black text-slate-900">{invoice.transport}</p>
+                                                <p className="text-xl font-black text-slate-900">{invoice.noteChargeur || invoice.transport}</p>
                                             </div>
                                         </div>
                                         <div className="col-span-5 p-4 flex flex-col justify-center text-center relative">
@@ -827,93 +851,6 @@ const App: React.FC = () => {
                             </div>
                         )}
                     </div>
-                ) : activeTab === 'CMR' ? (
-                    <div className="space-y-8">
-                        <div className="flex justify-between items-center no-print">
-                            <div className="flex items-center gap-4">
-                                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-widest">Document CMR</h2>
-                                {isValidated && (
-                                    <button 
-                                        onClick={handleReset}
-                                        className="flex items-center gap-2 bg-red-100 hover:bg-red-600 hover:text-white text-red-700 px-5 py-2.5 rounded-2xl text-xs font-black transition-all uppercase border border-red-200 shadow-sm"
-                                    >
-                                        <RotateCcw className="w-4 h-4" />
-                                        Modifier Facture (Reset)
-                                    </button>
-                                )}
-                            </div>
-                            <div className="flex gap-4">
-                                <button 
-                                    onClick={handleExportCMR}
-                                    className="flex items-center gap-3 bg-slate-800 hover:bg-black text-white px-8 py-4 rounded-xl font-black transition-all shadow-xl uppercase tracking-widest"
-                                >
-                                    <Printer className="w-6 h-6" />
-                                    IMPRIMER CMR (PDF)
-                                </button>
-                            </div>
-                        </div>
-
-                        {!isValidated ? (
-                            <div className="bg-yellow-50 border-2 border-yellow-200 p-10 rounded-3xl text-center space-y-4 no-print">
-                                <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto" />
-                                <h3 className="text-2xl font-black text-yellow-800 uppercase tracking-widest">Action Requise</h3>
-                                <p className="text-yellow-700 font-medium max-w-md mx-auto">Veuillez d'abord VALIDER les données dans l'onglet FACTURE pour remplir automatiquement le CMR.</p>
-                                <button onClick={() => setActiveTab('FACTURE')} className="bg-yellow-600 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest hover:bg-yellow-700 transition-all">Retourner à la Facture</button>
-                            </div>
-                        ) : (
-                            <div className="bg-slate-300 p-10 rounded-3xl shadow-2xl border-8 border-slate-100 overflow-x-auto">
-                                <div className="max-w-4xl mx-auto bg-white p-20 rounded shadow-2xl min-h-[1100px] relative font-serif text-slate-900 border border-slate-200">
-                                    <div className="mb-6 pt-1">
-                                        <p className="font-bold text-lg">DAM PECHE SARL.</p>
-                                        <p className="text-sm">PORT DE PECHE TANGER</p>
-                                        <p className="text-sm">MAROC</p>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 mb-8 pt-4"> 
-                                        <div className="space-y-0.5">
-                                            <p className="font-bold text-lg uppercase">{invoice.clientId}</p>
-                                            <p className="text-sm font-bold uppercase">VALENCIA</p>
-                                            <p className="text-sm font-bold uppercase">ESPAGNE</p>
-                                        </div>
-                                        <div className="text-right space-y-0.5">
-                                            <p className="font-bold text-lg uppercase">{invoice.transport}</p>
-                                            <p className="text-sm">PORT DE PECHE TANGER</p>
-                                            <br/>
-                                            <p className="font-bold text-sm tracking-widest mt-2">Matricule: {invoice.trailer}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mb-16 space-y-1">
-                                        <p className="text-sm uppercase">Valencia Espagne</p>
-                                        <br/>
-                                        <p className="text-base">Tanger, le {new Date(invoice.date).toLocaleDateString('fr-FR')}</p>
-                                        <br/>
-                                        <p className="text-base font-bold">Facture + EUR 1</p>
-                                    </div>
-
-                                    <div className="flex justify-between items-start pt-10">
-                                        <div className="space-y-4">
-                                            <p className="text-xl uppercase tracking-tighter">
-                                                {totals.qty} {totalQtySymbol === 'P' ? 'PIECES' : 'COLIS'} D’ {docDesignation}
-                                            </p>
-                                            <p className="font-bold text-lg text-slate-700">
-                                                (POIDS NET  {formatWeight(totals.net)} KG)
-                                            </p>
-                                        </div>
-                                        <div className="text-right pr-16">
-                                            <p className="font-bold text-xl tracking-tighter">
-                                                {formatWeight(totals.brut)} KG
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="absolute bottom-20 left-15 text-base"> 
-                                        Tanger, le       {new Date(invoice.date).toLocaleDateString('fr-FR')}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
                 ) : (
                     <div className="space-y-8">
                         <div className="flex justify-between items-center no-print">
@@ -1014,12 +951,12 @@ const App: React.FC = () => {
                                         <div className="w-[70%] py-2 text-center border-r-2 border-slate-900">DESIGNATION</div>
                                         <div className="w-[30%] py-2 text-center">MONTANT EUR</div>
                                     </div>
-                                    <div className="flex min-h-[300px]">
-                                        <div className="w-[70%] p-6 border-r-2 border-slate-900 relative">
-                                            <p className="font-bold mb-12">FRAIS DE TRANSPORT : <span className="uppercase text-lg ml-2">TANGER - {destinationCity}</span></p>
-                                            <p className="font-bold absolute bottom-12 left-6">C/R : {invoice.trailer.toUpperCase() || '18905 B 40 / 6962 08'}</p>
+                                    <div className="flex min-h-[180px]">
+                                        <div className="w-[70%] p-4 border-r-2 border-slate-900 relative">
+                                            <p className="font-bold mb-8">FRAIS DE TRANSPORT : <span className="uppercase text-lg ml-2">TANGER - {destinationCity}</span></p>
+                                            <p className="font-bold absolute bottom-6 left-6">C/R : {invoice.trailer.toUpperCase() || '18905 B 40 / 6962 08'}</p>
                                         </div>
-                                        <div className="w-[30%] p-6 text-center">
+                                        <div className="w-[30%] p-4 text-center">
                                             <p className="font-bold text-lg">{formatEuro(invoice.transportAmount || 0)}</p>
                                         </div>
                                     </div>

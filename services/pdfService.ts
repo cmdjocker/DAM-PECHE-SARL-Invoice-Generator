@@ -348,7 +348,7 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.setTextColor(RED[0], RED[1], RED[2]);
     doc.text('DAM PECHE SARL', (20 + splitX) / 2, currentY + 15, { align: 'center' });
 
-    // Chargeur
+    // Chargeur (Priority to manual entry noteChargeur)
     doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
@@ -356,7 +356,7 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(RED[0], RED[1], RED[2]);
-    doc.text(data.transport.toUpperCase(), (20 + splitX) / 2, currentY + 36, { align: 'center' });
+    doc.text((data.noteChargeur || data.transport).toUpperCase(), (20 + splitX) / 2, currentY + 36, { align: 'center' });
 
     // Consignataire (Tall box on right)
     doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);
@@ -552,7 +552,7 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
             [
                 { 
                     content: `\nFRAIS DE TRANSPORT : TANGER - ${destinationCity.toUpperCase()}\n\n\n\nC/R : ${data.trailer.toUpperCase()}`,
-                    styles: { minCellHeight: 80, fontStyle: 'bold' } 
+                    styles: { minCellHeight: 40, fontStyle: 'bold' } 
                 },
                 { 
                     content: `\n${formatEuro(totalEur)}`, 
@@ -574,7 +574,7 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
             textColor: [0, 0, 0],
             lineWidth: 0.5,
             lineColor: [0, 0, 0],
-            cellPadding: 5
+            cellPadding: 4
         },
         columnStyles: {
             0: { cellWidth: 120 },
