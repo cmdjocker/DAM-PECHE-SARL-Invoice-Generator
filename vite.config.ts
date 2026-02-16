@@ -4,9 +4,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // This shims process.env for the browser environment
-    // Vite will replace process.env.API_KEY with the actual value during build/runtime
-    'process.env': process.env
+    // Vite requires explicit definition for process.env in the browser
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
   },
   server: {
     port: 3000

@@ -162,14 +162,14 @@ export const generateInvoicePDF = (data: InvoiceData, products: Product[]) => {
     });
 
     const lastTable = (doc as any).lastAutoTable;
-    currentY = lastTable.finalY + 5; 
+    currentY = lastTable.finalY + 8; 
 
     const plasticWeight = totalBrut * 0.006;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`TOTAL PESO NETO DE PLASTICO NO REUTILIZABLE: ${formatWeight(plasticWeight)} KG NETOS`, 20, currentY);
     
-    currentY += 12;
+    currentY += 15;
     const totalDhs = totalEur * data.exchangeRate;
     doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
@@ -193,15 +193,21 @@ export const generateInvoicePDF = (data: InvoiceData, products: Product[]) => {
     doc.text(`${data.trailer}`, 78, currentY + 12);
     
     const pageHeight = doc.internal.pageSize.height;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PAYEMENT PAR VIREMENT', 105, pageHeight - 22, { align: 'center' });
-    doc.text('IBAN : MA64 0116 4000 0001 2100 0620 2556', 105, pageHeight - 16, { align: 'center' });
-    doc.text('CODE SWIFT: BMCEMAMCXXX', 105, pageHeight - 10, { align: 'center' });
     
+    // Centered and Bold bank info block
+    let bankDetailsY = pageHeight - 45;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PAYEMENT PAR VIREMENT', 105, bankDetailsY, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text('IBAN : MA64 0116 4000 0001 2100 0620 2556', 105, bankDetailsY + 5, { align: 'center' });
+    doc.text('CODE SWIFT: BMCEMAMCXXX', 105, bankDetailsY + 10, { align: 'center' });
+    doc.text('BANK OF AFRICA', 105, bankDetailsY + 15, { align: 'center' });
+    doc.text("CENTRE D'AFFAIRE TANGER", 105, bankDetailsY + 20, { align: 'center' });
+
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('PORT DE PECHE TANGER TEL:039 93 35 25 FAX:039 93 04 07 Email: dampeche@gmail.com', 105, pageHeight - 4, { align: 'center' });
+    doc.text('PORT DE PECHE TANGER TEL:039 93 35 25 FAX:039 93 04 07 Email: dampeche@gmail.com', 105, pageHeight - 10, { align: 'center' });
 
     doc.save(`Facture_${data.invoiceNumber || 'Draft'}.pdf`);
 };
@@ -387,7 +393,7 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.line(20, currentY + 11, 85, currentY + 11);
     doc.line(52, currentY + 11, 52, currentY + tableH);
 
-    // EXTENDING THE HEADER-DATA SEPARATOR LINE ACROSS ALL COLUMNS
+    // HEADER-DATA SEPARATOR LINE
     doc.line(20, currentY + 22, 190, currentY + 22);
 
     doc.setFontSize(9);
@@ -430,32 +436,30 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(RED[0], RED[1], RED[2]);
 
-    // Marcas (Trailer) - AUTO WRAPPING FOR LONG MATRICULE
+    // Marcas (Trailer)
     const trailerLines = doc.splitTextToSize(data.trailer.toUpperCase(), 28);
     doc.text(trailerLines, 36, currentY + 45, { align: 'center' });
     
-    // Description - Aligned below the separator line
+    // Description
     const mainDesc = `${totalQty} ${qtySymbol} D' ${designation.toUpperCase()}`;
     const descLines = doc.splitTextToSize(mainDesc, 60);
     doc.text(descLines, 118.5, currentY + 45, { align: 'center' });
     
-    // Peso - Aligned below the separator line
+    // Peso
     doc.text(`${formatWeight(totalBrut)} KG`, 163.5, currentY + 45, { align: 'center' });
 
-    // 8. Footer Section (Reduced Spacing and Size)
+    // Footer Section
     doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);
     doc.setFontSize(6.5); 
     doc.setFont('helvetica', 'normal');
     let footY = currentY + tableH + 4;
 
-    // Line 1
     doc.text('Insruccionesdel Agente de Aduanas : .....................................................................', 20, footY);
     doc.text('Conforme para embarque', 130, footY);
     footY += 2.5; 
     doc.text('Instructions de l’Agent en Douanes', 20, footY);
     doc.text('Vu confonne pour embarquement', 130, footY);
 
-    // Line 2
     footY += 5;
     doc.setFont('helvetica', 'bold');
     doc.text('Fletepagadero en ...................DESTINATION..........................................', 20, footY);
@@ -465,7 +469,6 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.text('Frêt payable à', 20, footY);
     doc.text('sur le', 130, footY);
 
-    // Line 3
     footY += 5;
     doc.setFont('helvetica', 'bold');
     doc.text('Conocimientoaentregar a ............................................................................................', 20, footY);
@@ -475,20 +478,17 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.text('Connaissement à remettre à', 20, footY);
     doc.text('Départ le', 130, footY);
 
-    // Line 4
     footY += 5;
     doc.text('a) Original ? ........................b) Ejemplares ? ............................................................', 20, footY);
     doc.text('A las............................................................', 130, footY);
     footY += 2.5;
     doc.text('a) copies ?                               b) Exemplaires ?', 20, footY);
 
-    // Line 5
     footY += 5;
     doc.text('Gastosvarios : embarque, peaje, etc............................................................................', 20, footY);
     footY += 2.5;
     doc.text('Frais divers : embarquement, péage, etc', 20, footY);
 
-    // Line 6
     footY += 5;
     doc.text('Pagaderospor ? ................................................................................................................', 20, footY);
     footY += 2.5;
@@ -509,7 +509,6 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
     const doc = new jsPDF();
     const formattedDate = new Date(data.date).toLocaleDateString('fr-FR');
     
-    // Header - matching the provided image
     doc.setFontSize(32);
     doc.setFont('times', 'bold');
     doc.text('DAMJI-TRANS S.A.R.L', 105, 20, { align: 'center' });
@@ -522,12 +521,10 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
     doc.setFont('times', 'normal');
     doc.text('RC N°:23883/PATENTE N°:50502638/ IF: 04907266 / ICE : 000226225000015', 105, 35, { align: 'center' });
 
-    // Date - Aligned right
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text(`TANGER LE ${new Date(data.date).toLocaleDateString('fr-FR')}`, 190, 52, { align: 'right' });
 
-    // Invoice Title
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     const invoiceTitle = `FACTURE N° ${data.transportInvoiceNumber || '____'}`;
@@ -535,18 +532,15 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
     doc.text(invoiceTitle, 105, 75, { align: 'center' });
     doc.line(105 - (titleWidth / 2), 76.5, 105 + (titleWidth / 2), 76.5);
 
-    // Client Block
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     const clientFullText = `CLIENT: ${data.clientId.toUpperCase()}   ${data.clientAddress.toUpperCase()}`;
     const splitClient = doc.splitTextToSize(clientFullText, 170);
     doc.text(splitClient, 20, 95);
     
-    // Calculate underline for first line only
     const clientLabelWidth = doc.getTextWidth(splitClient[0]);
     doc.line(20, 96, 20 + clientLabelWidth, 96);
 
-    // Main Table
     const totalEur = data.transportAmount || 0;
     const parts = data.clientAddress.split(' ');
     const destinationCity = parts[parts.length - 2] || 'CADIZ';
@@ -600,14 +594,12 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
 
     const finalY = (doc as any).lastAutoTable.finalY;
 
-    // Amount in words
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     doc.text('ARRETEE LA PRESENTE FACTURE A LA SOMME DE :', 20, finalY + 15);
     doc.setFont('helvetica', 'bold');
     doc.text(`${numberToWordsFR(totalEur)} EUROS.`, 20, finalY + 23);
 
-    // Bank Details Section
     let bankY = finalY + 50;
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
@@ -621,7 +613,6 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
     doc.text('BANQUE OF AFRICA', 105, bankY + 16, { align: 'center' });
     doc.text('AGENCE TANGER VILLE', 105, bankY + 24, { align: 'center' });
 
-    // Footer - at the very bottom
     const pageHeight = doc.internal.pageSize.height;
     doc.setLineWidth(0.2);
     doc.setLineDashPattern([1, 1], 0);

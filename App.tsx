@@ -538,7 +538,7 @@ const App: React.FC = () => {
                         )}
 
                         <section id="preview-section" className="bg-slate-300 p-10 rounded-3xl shadow-2xl hidden md:block border-8 border-slate-200/50">
-                            <div className="max-w-4xl mx-auto bg-white p-16 rounded-lg shadow-2xl relative overflow-hidden min-h-[1100px] border">
+                            <div className="max-w-4xl mx-auto bg-white p-16 rounded-lg shadow-2xl relative overflow-hidden min-h-[1100px] border flex flex-col">
                                 <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-black px-6 py-2 rounded-bl-2xl uppercase tracking-[0.2em]">Aperçu Réel</div>
                                 <div className="text-center space-y-1 mb-12" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
                                     <h3 className="text-6xl font-bold text-slate-900 leading-none">DAM PECHE S.A.R.L</h3>
@@ -603,19 +603,38 @@ const App: React.FC = () => {
                                         </tr>
                                     </tbody>
                                 </table>
-                                <div className="space-y-10 text-xs mt-2">
-                                    <div className="text-slate-800 font-bold border-l-8 border-slate-900 pl-6 py-3 bg-slate-50 text-sm">TOTAL PESO NETO DE PLASTICO NO REUTILIZABLE: <span className="text-indigo-600">{formatWeight(parseFloat(plasticWeight))} KG NETOS</span></div>
-                                    <div className="flex justify-between items-center text-3xl font-black border-t-4 border-slate-900 pt-10 uppercase tracking-tighter"><span className="text-slate-300">Valeur en Dirhams:</span><span>{formatEuro(totals.eur * invoice.exchangeRate)} DHS</span></div>
-                                    <div className="grid grid-cols-2 gap-12 pt-10">
+                                <div className="space-y-6 text-xs mt-6 flex-1 flex flex-col">
+                                    <div className="flex justify-between items-start gap-8">
+                                        <div className="flex-1 text-slate-800 font-bold border-l-8 border-slate-900 pl-6 py-3 bg-slate-50 text-sm">
+                                            TOTAL PESO NETO DE PLASTICO NO REUTILIZABLE: <span className="text-indigo-600">{formatWeight(parseFloat(plasticWeight))} KG NETOS</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center text-3xl font-black border-t-4 border-slate-900 pt-8 uppercase tracking-tighter">
+                                        <span className="text-slate-300">Valeur en Dirhams:</span>
+                                        <span>{formatEuro(totals.eur * invoice.exchangeRate)} DHS</span>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-12 pt-6">
                                         <div className="space-y-6">
                                             <p><span className="text-slate-400 uppercase text-[10px] font-black">INCOTERM:</span> <span className="font-black text-base underline decoration-2">{invoice.incoterm} TANGER</span></p>
                                             <p><span className="text-slate-400 uppercase text-[10px] font-black">TRANSPORT:</span> <span className="font-black text-base underline decoration-2">{invoice.transport}</span></p>
                                             <p><span className="text-slate-400 uppercase text-[10px] font-black">MATRICULE:</span> <span className="font-black underline decoration-4 text-4xl block mt-2 text-indigo-800">{invoice.trailer}</span></p>
                                         </div>
-                                        <div className="text-right space-y-3">
-                                            <div className="text-[13px] font-black uppercase text-slate-900 space-y-2 border-2 border-slate-100 p-4 rounded-xl"><p className="mb-2 text-indigo-700 underline decoration-2">PAYEMENT PAR VIREMENT</p><p className="text-base">IBAN: MA64 0116 4000 0001 2100 0620 2556</p><p>CODE SWIFT: BMCEMAMCXXX</p></div>
-                                            <p className="text-[11px] text-slate-500 font-black">BANK OF AFRICA - PORT TANGER</p>
+                                    </div>
+
+                                    {/* Centered Bank info at the very bottom */}
+                                    <div className="mt-auto pt-10 border-t border-slate-100 flex flex-col items-center">
+                                        <div className="text-[13px] font-black uppercase text-slate-900 space-y-1 p-5 inline-block text-center mb-4">
+                                            <p className="text-indigo-700 underline underline-offset-4 decoration-2 mb-2 font-black">PAYEMENT PAR VIREMENT</p>
+                                            <p className="text-base tracking-tight font-black">IBAN : MA64 0116 4000 0001 2100 0620 2556</p>
+                                            <p className="font-black">CODE SWIFT: BMCEMAMCXXX</p>
+                                            <p className="font-black mt-2">BANK OF AFRICA</p>
+                                            <p className="font-black text-slate-500 text-[11px]">CENTRE D'AFFAIRE TANGER</p>
                                         </div>
+                                        <p className="text-[11px] text-slate-400 font-bold text-center w-full pt-4">
+                                            PORT DE PECHE TANGER TEL:039 93 35 25 FAX:039 93 04 07 Email: dampeche@gmail.com
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -674,7 +693,7 @@ const App: React.FC = () => {
                                         <p>El Agente de Aduanas .............................................................................................................................................................</p>
                                         <p>L'agent en Douane</p>
                                         <p className="pt-2">..............................................................................................................A ........................... Tel .............................................</p>
-                                        <p className="pt-2 italic">Solicita la reserva de fletepala las mercanciassuguientes en la fecha y conditionsindicadas</p>
+                                        <p className="pt-2 italic">Solicita la reserva de fletepala las mercanciassuguientes en la fecha et conditionsindicadas</p>
                                         <p className="italic">Solicité la réservation du frêt pour les marchandises suivantes à la date et aux conditions ci-après</p>
                                     </div>
 
@@ -1018,16 +1037,16 @@ const App: React.FC = () => {
 
                                 {/* Bank and Payment */}
                                 <div className="mt-24 text-center space-y-2">
-                                    <p className="text-sm font-medium uppercase">PAYEMENT PAR VIREMENT COMPTE <span className="font-bold ml-2">RIB: 011640000001210000390801</span></p>
-                                    <p className="text-base font-bold uppercase">CODE SWIFT : BMCEMAMCXXX</p>
-                                    <p className="text-sm font-medium uppercase">BANQUE OF AFRICA</p>
-                                    <p className="text-sm font-medium uppercase">AGENCE TANGER VILLE</p>
+                                    <p className="text-sm font-medium uppercase font-black">PAYEMENT PAR VIREMENT COMPTE <span className="font-bold ml-2">RIB: 011640000001210000390801</span></p>
+                                    <p className="text-base font-bold uppercase font-black">CODE SWIFT : BMCEMAMCXXX</p>
+                                    <p className="text-sm font-medium uppercase font-black">BANQUE OF AFRICA</p>
+                                    <p className="text-sm font-medium uppercase font-black">AGENCE TANGER VILLE</p>
                                 </div>
 
                                 {/* Footer Contact */}
                                 <div className="absolute bottom-10 left-0 w-full px-12">
                                     <div className="border-t border-slate-900 border-dashed pt-4">
-                                        <p className="text-[10px] font-medium text-slate-600 text-center leading-relaxed">
+                                        <p className="text-[10px] font-medium text-slate-600 text-center leading-relaxed font-bold">
                                             PORT DE PECHE TANGER TEL: +(212)539933525/+(212)539934101 FAX:+(212)539930407/+(212)539948403
                                         </p>
                                     </div>
