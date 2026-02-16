@@ -950,7 +950,7 @@ const App: React.FC = () => {
                                             <input 
                                                 type="text" 
                                                 placeholder="Ex: 1500,00" 
-                                                defaultValue={invoice.transportAmount === 0 ? '' : invoice.transportAmount.toString().replace('.', ',')} 
+                                                defaultValue={(invoice.transportAmount || 0) === 0 ? '' : (invoice.transportAmount || 0).toString().replace('.', ',')} 
                                                 onBlur={e => setInvoice(prev => ({...prev, transportAmount: normalizeNum(e.target.value)}))} 
                                                 className="w-full pl-12 pr-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none font-black text-xl text-indigo-700" 
                                             />

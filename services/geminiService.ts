@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIParsedItem } from "../types";
 
@@ -41,7 +40,10 @@ export async function parseShipmentData(text: string): Promise<AIParsedItem[]> {
       }
     });
 
-    const jsonStr = response.text.trim();
+    const textOutput = response.text;
+    if (!textOutput) return [];
+
+    const jsonStr = textOutput.trim();
     const sanitized = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
     return JSON.parse(sanitized);
   } catch (error) {

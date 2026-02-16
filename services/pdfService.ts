@@ -552,7 +552,7 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
             [
                 { 
                     content: `\nFRAIS DE TRANSPORT : TANGER - ${destinationCity.toUpperCase()}\n\n\n\nC/R : ${data.trailer.toUpperCase()}`,
-                    styles: { cellHeight: 80, fontStyle: 'bold' } 
+                    styles: { minCellHeight: 80, fontStyle: 'bold' } 
                 },
                 { 
                     content: `\n${formatEuro(totalEur)}`, 
