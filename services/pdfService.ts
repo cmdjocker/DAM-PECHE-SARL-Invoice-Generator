@@ -216,45 +216,40 @@ export const generateCMRPDF = (data: InvoiceData, products: Product[]) => {
     const doc = new jsPDF();
     const formattedDate = new Date(data.date).toLocaleDateString('fr-FR');
     
+    // Header
     doc.setFontSize(12);
     doc.setFont('times', 'bold');
     doc.text('DAM PECHE SARL.', 20, 20);
     doc.text('PORT DE PECHE TANGER', 20, 25);
     doc.text('MAROC', 20, 30);
 
+    // Client and Transport Info
     doc.setFontSize(12);
     doc.setFont('times', 'bold');
     doc.text(data.clientId, 20, 45);
     doc.text('VALENCIA', 20, 50);
     doc.text('ESPAGNE', 20, 55);
 
-    doc.setFontSize(12);
-    doc.setFont('times', 'bold');
     doc.text(data.transport.toUpperCase(), 120, 45);
     doc.text('PORT DE PECHE TANGER', 120, 50);
-    
     doc.setFontSize(10);
     doc.text(`Matricule: ${data.trailer || ''}`, 120, 68);
 
+    // Metadata
     doc.setFontSize(12);
     doc.setFont('times', 'normal');
     doc.text('Valencia Espagne', 20, 75);
     doc.text(`Tanger, le ${formattedDate}`, 20, 90);
     doc.text('Facture + EUR 1', 20, 110);
 
-    let totalBrut = 0;
-    let totalNet = 0;
-    let totalQty = 0;
-    let hasMollusk = false;
+    // Summary calculation
+    let totalBrut = 0, totalNet = 0, totalQty = 0, hasMollusk = false;
     const speciesNames: string[] = [];
-
     data.items.forEach(item => {
         const prod = products.find(p => p.id === item.productId);
         if (prod) {
             speciesNames.push(prod.name);
-            if (MOLLUSK_NAMES.includes(prod.name.toUpperCase())) {
-                hasMollusk = true;
-            }
+            if (MOLLUSK_NAMES.includes(prod.name.toUpperCase())) hasMollusk = true;
         }
         totalBrut += item.brutWeight;
         totalNet += item.netWeight;
@@ -265,16 +260,14 @@ export const generateCMRPDF = (data: InvoiceData, products: Product[]) => {
     let designation = uniqueSpecies.length === 1 ? uniqueSpecies[0] + " FRAIS" : (hasMollusk ? "POISSONS ET MOLLUSQUES FRAIS" : "POISSONS FRAIS");
     const qtySymbol = data.items.every(i => i.symbol === 'P') ? 'PIECES' : 'COLIS';
     
+    // Main Body
     doc.setFontSize(11);
-    doc.setFont('times', 'normal');
     doc.text(`${totalQty} ${qtySymbol} D' ${designation}`, 20, 155);
     doc.text(`(POIDS NET ${formatWeight(totalNet)} KG)`, 25, 163);
     
-    doc.setFontSize(11);
     doc.setFont('times', 'bold');
     doc.text(`${formatWeight(totalBrut)} KG`, 170, 155, { align: 'right' });
 
-    doc.setFontSize(12);
     doc.setFont('times', 'normal');
     doc.text(`Tanger, le ${formattedDate}`, 35, 255);
 
@@ -284,11 +277,8 @@ export const generateCMRPDF = (data: InvoiceData, products: Product[]) => {
 export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) => {
     const doc = new jsPDF();
     const formattedDate = new Date(data.date).toLocaleDateString('fr-FR');
-    // Change RED constant to BLACK values as requested
-    const RED = [0, 0, 0] as [number, number, number]; 
     const BLACK = [0, 0, 0] as [number, number, number];
     
-    // 1. Cachet Box
     doc.setDrawColor(0);
     doc.setLineWidth(0.4);
     doc.rect(138, 12, 52, 28);
@@ -296,7 +286,6 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.setFont('helvetica', 'normal');
     doc.text('Cachet du demandeur', 138, 9);
 
-    // 2. Title Section
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text('PETICION DE EMBARQUE', 105, 42, { align: 'center' });
@@ -305,7 +294,6 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.text("Note d'embarquement", 105, 49, { align: 'center' });
     doc.text('Signature........................................', 135, 49);
 
-    // 3. Header Text Lines
     doc.setFontSize(7.5);
     let currentY = 58;
     doc.text('El Agente de Aduanas .............................................................................................................................................................', 20, currentY);
@@ -318,7 +306,6 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.setFont('helvetica', 'normal');
     doc.text('Solicité la réservation du frêt pour les marchandises suivantes à la date et aux conditions ci-après', 20, currentY + 4);
 
-    // 4. Voyage Info Row
     currentY += 9;
     doc.rect(20, currentY, 170, 14);
     doc.line(75, currentY, 75, currentY + 14);
@@ -331,7 +318,6 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.text('Viaje n°', 124, currentY + 4);
     doc.text('Puerto de Destino (Port destinataire)', 144, currentY + 4);
 
-    // 5. Parties Boxes (Asymmetrical Layout)
     currentY += 20;
     const boxH = 42;
     doc.rect(20, currentY, 170, boxH);
@@ -339,38 +325,28 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.line(splitX, currentY, splitX, currentY + boxH);
     doc.line(20, currentY + 21, splitX, currentY + 21);
 
-    // Expéditeur
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.text('Remitente (Expéditeur)', 22, currentY + 5);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(RED[0], RED[1], RED[2]);
     doc.text('DAM PECHE SARL', (20 + splitX) / 2, currentY + 15, { align: 'center' });
 
-    // Chargeur (Priority to manual entry noteChargeur)
-    doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.text('Cargador o Agente de Aduanas (Chargeur ou transitaire)', 22, currentY + 26);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(RED[0], RED[1], RED[2]);
     doc.text((data.noteChargeur || data.transport).toUpperCase(), (20 + splitX) / 2, currentY + 36, { align: 'center' });
 
-    // Consignataire (Tall box on right)
-    doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.text('Consignatario de la mercancia (Réceptionnaire)', splitX + 2, currentY + 5);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(RED[0], RED[1], RED[2]);
     const clientLines = doc.splitTextToSize(data.clientId.toUpperCase(), 170 - splitX - 10);
     doc.text(clientLines, (splitX + 190) / 2, currentY + 22, { align: 'center' });
 
-    // 6. Declaration Section
-    doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);
     currentY += boxH + 12;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -379,54 +355,34 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.setFont('helvetica', 'normal');
     doc.text('(Déclaration faite par le Chargeur)', 105, currentY + 5, { align: 'center' });
 
-    // 7. Main Data Table Structure
     currentY += 10;
     const tableH = 80;
     doc.rect(20, currentY, 170, tableH);
-    
-    // Vertical dividers
     doc.line(85, currentY, 85, currentY + tableH); 
     doc.line(152, currentY, 152, currentY + tableH); 
     doc.line(175, currentY, 175, currentY + tableH); 
-
-    // Internal sub-headers dividers for BULTOS
     doc.line(20, currentY + 11, 85, currentY + 11);
     doc.line(52, currentY + 11, 52, currentY + tableH);
-
-    // HEADER-DATA SEPARATOR LINE
     doc.line(20, currentY + 22, 190, currentY + 22);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('BULTOS (Colis)', (20 + 85) / 2, currentY + 7.5, { align: 'center' });
-    
     doc.setFontSize(8);
     doc.text('Marcas (Marques)', 36, currentY + 16.5, { align: 'center' });
     doc.text('Clase Numero', 68.5, currentY + 16.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('(Genre)', 68.5, currentY + 19.5, { align: 'center' });
-
-    doc.setFont('helvetica', 'bold');
     doc.text('DESCRIPCION DE LA MERCANCIA', 118.5, currentY + 9, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('(Description de la marchandises)', 118.5, currentY + 14, { align: 'center' });
-
-    doc.setFont('helvetica', 'bold');
     doc.text('Peso bruto', 163.5, currentY + 9, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('(Poids)', 163.5, currentY + 14, { align: 'center' });
-
-    doc.setFont('helvetica', 'bold');
     doc.text('Volumen', 182.5, currentY + 9, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('(volume)', 182.5, currentY + 14, { align: 'center' });
 
-    // --- Fill Table Data ---
-    let totalBrut = 0, totalQty = 0, hasMollusk = false, speciesNames: string[] = [];
+    let totalBrut = 0, totalQty = 0, speciesNames: string[] = [], hasMollusk = false;
     data.items.forEach(item => {
         totalBrut += item.brutWeight; totalQty += item.quantity;
         const prod = products.find(p => p.id === item.productId);
-        if (prod) { speciesNames.push(prod.name); if (MOLLUSK_NAMES.includes(prod.name.toUpperCase())) hasMollusk = true; }
+        if (prod) {
+            speciesNames.push(prod.name);
+            if (MOLLUSK_NAMES.includes(prod.name.toUpperCase())) hasMollusk = true;
+        }
     });
     const unique = Array.from(new Set(speciesNames));
     let designation = unique.length === 1 ? unique[0] + " FRAIS" : (hasMollusk ? "POISSONS ET MOLLUSQUES FRAIS" : "POISSONS FRAIS");
@@ -434,73 +390,22 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
 
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(RED[0], RED[1], RED[2]);
-
-    // Marcas (Trailer)
     const trailerLines = doc.splitTextToSize(data.trailer.toUpperCase(), 28);
     doc.text(trailerLines, 36, currentY + 45, { align: 'center' });
-    
-    // Description
     const mainDesc = `${totalQty} ${qtySymbol} D' ${designation.toUpperCase()}`;
     const descLines = doc.splitTextToSize(mainDesc, 60);
     doc.text(descLines, 118.5, currentY + 45, { align: 'center' });
-    
-    // Peso
     doc.text(`${formatWeight(totalBrut)} KG`, 163.5, currentY + 45, { align: 'center' });
 
-    // Footer Section
-    doc.setTextColor(BLACK[0], BLACK[1], BLACK[2]);
     doc.setFontSize(6.5); 
     doc.setFont('helvetica', 'normal');
     let footY = currentY + tableH + 4;
-
-    doc.text('Insruccionesdel Agente de Aduanas : .....................................................................', 20, footY);
-    doc.text('Conforme para embarque', 130, footY);
-    footY += 2.5; 
-    doc.text('Instructions de l’Agent en Douanes', 20, footY);
-    doc.text('Vu confonne pour embarquement', 130, footY);
-
-    footY += 5;
+    doc.text('Instructions de l’Agent en Douanes', 20, footY + 2.5);
+    doc.text('Vu confonne pour embarquement', 130, footY + 2.5);
+    doc.text('Frêt payable à DESTINATION', 20, footY + 7.5);
+    doc.text('TANGER , Le : ', 130, 285);
     doc.setFont('helvetica', 'bold');
-    doc.text('Fletepagadero en ...................DESTINATION..........................................', 20, footY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('En el .....................................................', 130, footY);
-    footY += 2.5;
-    doc.text('Frêt payable à', 20, footY);
-    doc.text('sur le', 130, footY);
-
-    footY += 5;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Conocimientoaentregar a ............................................................................................', 20, footY);
-    doc.text('Salida el ........................................................', 130, footY);
-    footY += 2.5;
-    doc.setFont('helvetica', 'normal');
-    doc.text('Connaissement à remettre à', 20, footY);
-    doc.text('Départ le', 130, footY);
-
-    footY += 5;
-    doc.text('a) Original ? ........................b) Ejemplares ? ............................................................', 20, footY);
-    doc.text('A las............................................................', 130, footY);
-    footY += 2.5;
-    doc.text('a) copies ?                               b) Exemplaires ?', 20, footY);
-
-    footY += 5;
-    doc.text('Gastosvarios : embarque, peaje, etc............................................................................', 20, footY);
-    footY += 2.5;
-    doc.text('Frais divers : embarquement, péage, etc', 20, footY);
-
-    footY += 5;
-    doc.text('Pagaderospor ? ................................................................................................................', 20, footY);
-    footY += 2.5;
-    doc.text('Payable par ?', 20, footY);
-
-    const dateY = 285;
-    doc.setFontSize(10.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text('TANGER , Le : ', 130, dateY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(RED[0], RED[1], RED[2]);
-    doc.text(formattedDate, 158, dateY);
+    doc.text(formattedDate, 158, 285);
 
     doc.save(`Note_Navire_${data.invoiceNumber || 'Draft'}.pdf`);
 };
@@ -512,34 +417,25 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
     doc.setFontSize(32);
     doc.setFont('times', 'bold');
     doc.text('DAMJI-TRANS S.A.R.L', 105, 20, { align: 'center' });
-    
     doc.setFontSize(12);
-    doc.setFont('times', 'bold');
     doc.text('TRANSPORT NATIONAL ET INTERNATIONAL', 105, 28, { align: 'center' });
-    
     doc.setFontSize(10);
     doc.setFont('times', 'normal');
     doc.text('RC N°:23883/PATENTE N°:50502638/ IF: 04907266 / ICE : 000226225000015', 105, 35, { align: 'center' });
 
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(`TANGER LE ${new Date(data.date).toLocaleDateString('fr-FR')}`, 190, 52, { align: 'right' });
+    doc.text(`TANGER LE ${formattedDate}`, 190, 52, { align: 'right' });
 
     doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
     const invoiceTitle = `FACTURE N° ${data.transportInvoiceNumber || '____'}`;
-    const titleWidth = doc.getTextWidth(invoiceTitle);
     doc.text(invoiceTitle, 105, 75, { align: 'center' });
-    doc.line(105 - (titleWidth / 2), 76.5, 105 + (titleWidth / 2), 76.5);
+    doc.line(105 - 25, 76.5, 105 + 25, 76.5);
 
     doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    const clientFullText = `CLIENT: ${data.clientId.toUpperCase()}   ${data.clientAddress.toUpperCase()}`;
-    const splitClient = doc.splitTextToSize(clientFullText, 170);
+    const clientText = `CLIENT: ${data.clientId.toUpperCase()}   ${data.clientAddress.toUpperCase()}`;
+    const splitClient = doc.splitTextToSize(clientText, 170);
     doc.text(splitClient, 20, 95);
-    
-    const clientLabelWidth = doc.getTextWidth(splitClient[0]);
-    doc.line(20, 96, 20 + clientLabelWidth, 96);
 
     const totalEur = data.transportAmount || 0;
     const parts = data.clientAddress.split(' ');
@@ -549,51 +445,23 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
         startY: 110,
         head: [['DESIGNATION', 'MONTANT EUR']],
         body: [
-            [
-                { 
-                    content: `\nFRAIS DE TRANSPORT : TANGER - ${destinationCity.toUpperCase()}\n\n\n\nC/R : ${data.trailer.toUpperCase()}`,
-                    styles: { minCellHeight: 40, fontStyle: 'bold' } 
-                },
-                { 
-                    content: `\n${formatEuro(totalEur)}`, 
-                    styles: { halign: 'center', valign: 'top' } 
-                }
-            ],
+            [{ 
+                content: `\nFRAIS DE TRANSPORT : TANGER - ${destinationCity.toUpperCase()}\n\nC/R : ${data.trailer.toUpperCase()}`,
+                styles: { minCellHeight: 35, fontStyle: 'bold' } 
+            }, { 
+                content: `\n${formatEuro(totalEur)}`, 
+                styles: { halign: 'center', valign: 'top' } 
+            }],
         ],
         theme: 'grid',
-        headStyles: { 
-            fillColor: [255, 255, 255], 
-            textColor: [0, 0, 0], 
-            fontStyle: 'bold', 
-            halign: 'center',
-            lineWidth: 0.5,
-            lineColor: [0, 0, 0]
-        },
-        styles: { 
-            fontSize: 10, 
-            textColor: [0, 0, 0],
-            lineWidth: 0.5,
-            lineColor: [0, 0, 0],
-            cellPadding: 4
-        },
-        columnStyles: {
-            0: { cellWidth: 120 },
-            1: { cellWidth: 50 }
-        },
-        foot: [[
-            { content: 'TOTAL', styles: { halign: 'center', fontStyle: 'bold' } },
-            { content: formatEuro(totalEur), styles: { halign: 'center', fontStyle: 'bold' } }
-        ]],
-        footStyles: {
-            fillColor: [255, 255, 255],
-            textColor: [0, 0, 0],
-            lineWidth: 0.5,
-            lineColor: [0, 0, 0]
-        }
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineWidth: 0.5, lineColor: [0, 0, 0] },
+        styles: { fontSize: 10, textColor: [0, 0, 0], lineWidth: 0.5, lineColor: [0, 0, 0], cellPadding: 3 },
+        columnStyles: { 0: { cellWidth: 120 }, 1: { cellWidth: 50 } },
+        foot: [[{ content: 'TOTAL', styles: { halign: 'center', fontStyle: 'bold' } }, { content: formatEuro(totalEur), styles: { halign: 'center', fontStyle: 'bold' } }]],
+        footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.5, lineColor: [0, 0, 0] }
     });
 
     const finalY = (doc as any).lastAutoTable.finalY;
-
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     doc.text('ARRETEE LA PRESENTE FACTURE A LA SOMME DE :', 20, finalY + 15);
@@ -601,27 +469,14 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
     doc.text(`${numberToWordsFR(totalEur)} EUROS.`, 20, finalY + 23);
 
     let bankY = finalY + 50;
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('PAYEMENT PAR VIREMENT COMPTE ', 40, bankY);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RIB: 011640000001210000390801', 110, bankY);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('CODE SWIFT : BMCEMAMCXXX', 105, bankY + 8, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('BANQUE OF AFRICA', 105, bankY + 16, { align: 'center' });
-    doc.text('AGENCE TANGER VILLE', 105, bankY + 24, { align: 'center' });
+    doc.text('PAYEMENT PAR VIREMENT COMPTE RIB: 011640000001210000390801', 105, bankY, { align: 'center' });
+    doc.text('CODE SWIFT : BMCEMAMCXXX / BANQUE OF AFRICA', 105, bankY + 6, { align: 'center' });
 
     const pageHeight = doc.internal.pageSize.height;
-    doc.setLineWidth(0.2);
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(20, pageHeight - 20, 190, pageHeight - 20);
-    doc.setLineDashPattern([], 0);
-    
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('PORT DE PECHE TANGER TEL: +(212)539933525/+(212)539934101 FAX:+(212)539930407/+(212)539948403', 105, pageHeight - 15, { align: 'center' });
+    doc.text('PORT DE PECHE TANGER TEL: +(212)539933525 FAX:+(212)539930407', 105, pageHeight - 10, { align: 'center' });
 
     doc.save(`Facture_Transport_${data.transportInvoiceNumber || 'Draft'}.pdf`);
 };
