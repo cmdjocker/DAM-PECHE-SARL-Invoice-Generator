@@ -22,7 +22,11 @@ import {
     FileSignature,
     Euro,
     FileDigit,
-    UserCircle
+    UserCircle,
+    Save,
+    FolderOpen,
+    ArrowRight,
+    Loader2
 } from 'lucide-react';
 import { 
     DEFAULT_PRODUCTS, 
@@ -30,7 +34,7 @@ import {
     INCOTERMS, 
     TRANSPORTS 
 } from './constants';
-import { InvoiceData, InvoiceItem, Product, Client, AIParsedItem } from './types';
+import { InvoiceData, InvoiceItem, Product, Client, AIParsedItem, Transporter } from './types';
 import { generateInvoicePDF, generateCMRPDF, generateNoteNavirePDF, generateTransportInvoicePDF } from './services/pdfService';
 import { parseShipmentData } from './services/geminiService';
 
@@ -65,6 +69,7 @@ const numberToWordsFR = (num: number): string => {
 const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'FACTURE' | 'CMR' | 'NOTE' | 'TRANS'>('FACTURE');
     const [isValidated, setIsValidated] = useState(false);
+    
     const [invoice, setInvoice] = useState<InvoiceData>({
         invoiceNumber: '',
         date: new Date().toISOString().split('T')[0],
@@ -90,19 +95,25 @@ const App: React.FC = () => {
         return saved ? JSON.parse(saved) : DEFAULT_CLIENTS;
     });
 
-    const [transports, setTransports] = useState<string[]>(() => {
+    const [transports, setTransports] = useState<Transporter[]>(() => {
         const saved = localStorage.getItem('dam_peche_transports');
-        return saved ? JSON.parse(saved) : TRANSPORTS;
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Migration for old string array
+            if (Array.isArray(parsed) && typeof parsed[0] === 'string') {
+                return TRANSPORTS.map(t => ({ id: Math.random().toString(36).substr(2, 9), name: t, address: '' }));
+            }
+            return parsed;
+        }
+        return TRANSPORTS.map(t => ({ id: Math.random().toString(36).substr(2, 9), name: t, address: '' }));
     });
 
-    const [smartInput, setSmartInput] = useState('');
-    const [isParsing, setIsParsing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [modalMode, setModalMode] = useState<'none' | 'product' | 'client' | 'transport'>('none');
     
     const [newProd, setNewProd] = useState({ name: '', latin: '', symbol: 'C' as 'C' | 'P' });
     const [newClient, setNewClient] = useState({ name: '', address: '' });
-    const [newTransport, setNewTransport] = useState('');
+    const [newTransport, setNewTransport] = useState({ name: '', address: '' });
 
     useEffect(() => {
         localStorage.setItem('dam_peche_products', JSON.stringify(products));
@@ -136,9 +147,9 @@ const App: React.FC = () => {
         return sortedItems.reduce((acc, item) => {
             const amount = item.netWeight * item.unitPrice;
             return {
-                brut: acc.brut + item.brutWeight,
-                net: acc.net + item.netWeight,
-                qty: acc.qty + item.quantity,
+                brut: acc.brut + (item.brutWeight || 0),
+                net: acc.net + (item.netWeight || 0),
+                qty: acc.qty + (item.quantity || 0),
                 eur: acc.eur + amount
             };
         }, { brut: 0, net: 0, qty: 0, eur: 0 });
@@ -161,6 +172,15 @@ const App: React.FC = () => {
             ...prev,
             clientId: name,
             clientAddress: client?.address || ''
+        }));
+    };
+
+    const handleTransportChange = (name: string) => {
+        const transport = transports.find(t => t.name === name);
+        setInvoice(prev => ({
+            ...prev,
+            transport: name,
+            transportAddress: transport?.address || ''
         }));
     };
 
@@ -206,10 +226,15 @@ const App: React.FC = () => {
     };
 
     const addCustomTransport = () => {
-        if (!newTransport) return;
-        setTransports(prev => [...prev, newTransport.toUpperCase()]);
-        setInvoice(prev => ({ ...prev, transport: newTransport.toUpperCase() }));
-        setNewTransport('');
+        if (!newTransport.name) return;
+        const t: Transporter = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: newTransport.name.toUpperCase(),
+            address: newTransport.address
+        };
+        setTransports(prev => [...prev, t]);
+        setInvoice(prev => ({ ...prev, transport: t.name, transportAddress: t.address }));
+        setNewTransport({ name: '', address: '' });
         setModalMode('none');
     };
 
@@ -223,30 +248,6 @@ const App: React.FC = () => {
             ...prev,
             items: prev.items.map(item => item.id === id ? { ...item, [field]: value } : item)
         }));
-        setIsValidated(false);
-    };
-
-    const handleSmartParse = async () => {
-        if (!smartInput.trim()) return;
-        setIsParsing(true);
-        const parsedItems: AIParsedItem[] = await parseShipmentData(smartInput);
-        const newItems: InvoiceItem[] = parsedItems.map(p => {
-            const match = products.find(prod => 
-                prod.name.toLowerCase().includes(p.fishNameSuggestion?.toLowerCase() || '')
-            );
-            return {
-                id: Math.random().toString(36).substr(2, 9),
-                productId: match?.id || (products.length > 0 ? products[0].id : 'default'),
-                quantity: p.quantity || 0,
-                symbol: (p.symbol as 'C' | 'P') || 'C',
-                brutWeight: p.brutWeight || 0,
-                netWeight: p.netWeight || 0,
-                unitPrice: p.unitPrice || 0
-            };
-        });
-        setInvoice(prev => ({ ...prev, items: [...prev.items, ...newItems] }));
-        setSmartInput('');
-        setIsParsing(false);
         setIsValidated(false);
     };
 
@@ -302,10 +303,20 @@ const App: React.FC = () => {
         return hasMollusk ? "POISSONS ET MOLLUSQUES FRAIS" : "POISSONS FRAIS";
     }, [invoice.items, products]);
 
-    const destinationCity = useMemo(() => {
-        const parts = invoice.clientAddress.split(' ');
-        return parts[parts.length - 2] || 'CONIL';
+    const addressParts = useMemo(() => {
+        const parts = invoice.clientAddress.split(',').map(p => p.trim());
+        const lastPart = parts[parts.length - 1] || '';
+        const lastParts = lastPart.split(' ').map(p => p.trim()).filter(Boolean);
+        
+        const country = lastParts[lastParts.length - 1] || 'ESPAGNE';
+        const city = lastParts[lastParts.length - 2] || 'VALENCIA';
+        
+        return { city, country };
     }, [invoice.clientAddress]);
+
+    const destinationCity = useMemo(() => {
+        return addressParts.city;
+    }, [addressParts]);
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -354,19 +365,34 @@ const App: React.FC = () => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Facture N°</label>
-                                        <input type="text" placeholder="Ex: 5212/25" value={invoice.invoiceNumber} onChange={e => setInvoice(prev => ({...prev, invoiceNumber: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all font-semibold" />
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Facture N°</label>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1 group">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Ex: 5212/25" 
+                                                    value={invoice.invoiceNumber} 
+                                                    onChange={e => setInvoice(prev => ({...prev, invoiceNumber: e.target.value}))} 
+                                                    className="w-full pl-4 pr-10 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-lg" 
+                                                />
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    <Hash className="w-4 h-4 text-slate-300" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Date</label>
-                                        <input type="date" value={invoice.date} onChange={e => setInvoice(prev => ({...prev, date: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all font-semibold" />
+                                        <input type="date" value={invoice.date} onChange={e => setInvoice(prev => ({...prev, date: e.target.value}))} className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all font-semibold" />
                                     </div>
                                     <div className="space-y-1">
                                         <div className="flex justify-between items-center">
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Client</label>
                                             <button onClick={() => setModalMode('client')} className="text-[10px] text-indigo-600 font-black hover:underline underline-offset-2">NOUVEAU</button>
                                         </div>
-                                        <select value={invoice.clientId} onChange={e => handleClientChange(e.target.value)} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all font-semibold">
+                                        <select value={invoice.clientId} onChange={e => handleClientChange(e.target.value)} className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all font-semibold">
                                             {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                                         </select>
                                     </div>
@@ -392,8 +418,8 @@ const App: React.FC = () => {
                                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Transport</label>
                                                 <button onClick={() => setModalMode('transport')} className="text-[10px] text-indigo-600 font-black hover:underline">MODIFIER</button>
                                             </div>
-                                            <select value={invoice.transport} onChange={e => setInvoice(prev => ({...prev, transport: e.target.value}))} className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none font-black text-indigo-900">
-                                                {transports.map(t => <option key={t} value={t}>{t}</option>)}
+                                            <select value={invoice.transport} onChange={e => handleTransportChange(e.target.value)} className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none font-black text-indigo-900">
+                                                {transports.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                                             </select>
                                         </div>
                                         <div className="sm:col-span-8 space-y-1">
@@ -516,12 +542,12 @@ const App: React.FC = () => {
                             </div>
                         </section>
 
-                        <div className="flex flex-col md:flex-row justify-center gap-6 no-print pb-10">
-                            <button onClick={handleValidate} className="flex items-center justify-center gap-3 bg-slate-800 hover:bg-black text-white px-10 py-5 rounded-2xl font-black text-xl transition-all shadow-xl active:scale-95 uppercase tracking-widest border-b-4 border-slate-600">
+                        <div className="flex flex-col md:flex-row justify-center gap-4 no-print pb-10">
+                            <button onClick={handleValidate} className="flex items-center justify-center gap-3 bg-slate-800 hover:bg-black text-white px-8 py-5 rounded-2xl font-black text-xl transition-all shadow-xl active:scale-95 uppercase tracking-widest border-b-4 border-slate-600">
                                 <CheckCircle2 className={`w-7 h-7 ${isValidated ? 'text-green-400' : 'text-slate-400'}`} />
                                 VALIDER
                             </button>
-                            <button onClick={handleExport} className="flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-12 py-5 rounded-2xl font-black text-xl transition-all shadow-2xl active:scale-95 uppercase tracking-widest border-b-4 border-blue-800">
+                            <button onClick={handleExport} className="flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-10 py-5 rounded-2xl font-black text-xl transition-all shadow-2xl active:scale-95 uppercase tracking-widest border-b-4 border-blue-800">
                                 <Download className="w-7 h-7" />
                                 EXPORTER PDF
                             </button>
@@ -625,7 +651,6 @@ const App: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Centered Bank info at the very bottom */}
                                     <div className="mt-auto pt-10 border-t border-slate-100 flex flex-col items-center">
                                         <div className="text-[13px] font-black uppercase text-slate-900 space-y-1 p-5 inline-block text-center mb-4">
                                             <p className="text-indigo-700 underline underline-offset-4 decoration-2 mb-2 font-black">PAYEMENT PAR VIREMENT</p>
@@ -700,7 +725,6 @@ const App: React.FC = () => {
                         ) : (
                             <div className="bg-slate-300 p-10 rounded-3xl shadow-2xl border-8 border-slate-100 overflow-x-auto">
                                 <div className="max-w-4xl mx-auto bg-white p-12 rounded shadow-2xl min-h-[1100px] relative font-sans text-slate-900 border border-slate-200">
-                                    {/* CACHET BOX */}
                                     <div className="absolute top-10 right-10 w-48 h-28 border-2 border-slate-900 flex flex-col items-center justify-center">
                                         <p className="text-[10px] absolute -top-5 text-slate-900 font-bold">Cachet du demandeur</p>
                                     </div>
@@ -721,7 +745,6 @@ const App: React.FC = () => {
                                         <p className="italic">Solicité la réservation du frêt pour les marchandises suivantes à la date et aux conditions ci-après</p>
                                     </div>
 
-                                    {/* SHIP INFO TABLE */}
                                     <div className="grid grid-cols-4 mt-6 border-2 border-slate-900 divide-x-2 divide-slate-900 text-center font-bold text-[10px] uppercase">
                                         <div className="p-2 flex flex-col justify-center">Puerto de Origen<br/>(Port d’embarquement)</div>
                                         <div className="p-2 flex flex-col justify-center">Nombredelbugue<br/>(Nom du Navire)</div>
@@ -729,16 +752,21 @@ const App: React.FC = () => {
                                         <div className="p-2 flex flex-col justify-center">Puerto de Destino<br/>(Port destinataire)</div>
                                     </div>
 
-                                    {/* PARTIES BOXES */}
                                     <div className="grid grid-cols-12 mt-8 border-2 border-slate-900 min-h-[140px]">
                                         <div className="col-span-7 flex flex-col divide-y-2 divide-slate-900 border-r-2 border-slate-900">
                                             <div className="p-4 flex flex-col flex-1 justify-center text-center relative">
                                                 <p className="text-[10px] font-bold absolute top-1 left-2">Remitente (Expéditeur)</p>
                                                 <p className="text-xl font-black text-slate-900">DAM PECHE SARL</p>
                                             </div>
-                                            <div className="p-4 flex flex-col flex-1 justify-center text-center relative">
+                                    <div className="p-4 flex flex-col flex-1 justify-center text-center relative">
                                                 <p className="text-[10px] font-bold absolute top-1 left-2">Cargador o Agente de Aduanas (Chargeur ou transitaire)</p>
-                                                <p className="text-xl font-black text-slate-900">{invoice.noteChargeur || invoice.transport}</p>
+                                                <input 
+                                                    type="text" 
+                                                    value={invoice.cargadorAgente || invoice.noteChargeur || invoice.transport} 
+                                                    onChange={e => setInvoice(prev => ({...prev, cargadorAgente: e.target.value}))}
+                                                    className="w-full bg-transparent text-center text-xl font-black text-slate-900 border-b border-slate-200 focus:border-indigo-500 outline-none uppercase"
+                                                    placeholder="Saisir Chargeur..."
+                                                />
                                             </div>
                                         </div>
                                         <div className="col-span-5 p-4 flex flex-col justify-center text-center relative">
@@ -747,13 +775,11 @@ const App: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* DECLARATION HEADER */}
                                     <div className="mt-12 text-center">
                                         <p className="text-lg font-black uppercase tracking-tight">DATOS DECLARADOS POR EL CARGADOR</p>
                                         <p className="text-base font-medium">(Déclaration faite par le Chargeur)</p>
                                     </div>
 
-                                    {/* MAIN DATA TABLE */}
                                     <div className="border-2 border-slate-900 mt-6 grid grid-cols-12 divide-x-2 divide-slate-900 min-h-[300px]">
                                         <div className="col-span-4 flex flex-col">
                                             <div className="h-14 flex items-center justify-center font-bold text-base bg-slate-50/30 border-b-2 border-slate-900">BULTOS (Colis)</div>
@@ -800,7 +826,6 @@ const App: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* FOOTER FIELDS */}
                                     <div className="mt-8 grid grid-cols-2 gap-x-12 text-[10px] leading-tight font-medium">
                                         <div className="space-y-4">
                                             <div className="space-y-0.5">
@@ -896,19 +921,19 @@ const App: React.FC = () => {
                                     <div className="grid grid-cols-2 mb-8 pt-4"> 
                                         <div className="space-y-0.5">
                                             <p className="font-bold text-lg uppercase">{invoice.clientId}</p>
-                                            <p className="text-sm font-bold uppercase">VALENCIA</p>
-                                            <p className="text-sm font-bold uppercase">ESPAGNE</p>
+                                            <p className="text-sm font-bold uppercase">{addressParts.city}</p>
+                                            <p className="text-sm font-bold uppercase">{addressParts.country}</p>
                                         </div>
                                         <div className="text-right space-y-0.5">
                                             <p className="font-bold text-lg uppercase">{invoice.transport}</p>
-                                            <p className="text-sm">PORT DE PECHE TANGER</p>
+                                            <p className="text-sm uppercase whitespace-pre-wrap">{invoice.transportAddress || ''}</p>
                                             <br/>
                                             <p className="font-bold text-sm tracking-widest mt-2">Matricule: {invoice.trailer}</p>
                                         </div>
                                     </div>
 
                                     <div className="mb-16 space-y-1">
-                                        <p className="text-sm uppercase">Valencia Espagne</p>
+                                        <p className="text-sm uppercase">{addressParts.city} {addressParts.country}</p>
                                         <br/>
                                         <p className="text-base">Tanger, le {new Date(invoice.date).toLocaleDateString('fr-FR')}</p>
                                         <br/>
@@ -980,6 +1005,22 @@ const App: React.FC = () => {
                                             />
                                         </div>
                                     </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Trajet (Ruta)</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Ex: TANGER - CONIL" 
+                                            value={invoice.trajetRuta || `TANGER - ${destinationCity.toUpperCase()}`} 
+                                            onChange={e => setInvoice(prev => ({...prev, trajetRuta: e.target.value}))} 
+                                            className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none font-bold" 
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => setInvoice(prev => ({...prev, isTransportValidated: true}))}
+                                        className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg ${invoice.isTransportValidated ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                                    >
+                                        {invoice.isTransportValidated ? 'DONNÉES VALIDÉES ✓' : 'VALIDER LES ENTRÉES'}
+                                    </button>
                                 </div>
                             </div>
 
@@ -1004,35 +1045,25 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* PREVIEW PANEL - Matching the user's provided image layout */}
                         <section className="bg-slate-300 p-10 rounded-3xl shadow-2xl border-8 border-slate-200/50">
                             <div className="max-w-4xl mx-auto bg-white p-12 rounded shadow-2xl min-h-[1100px] relative font-serif text-slate-900">
-                                {/* Header */}
                                 <div className="text-center mb-8">
                                     <h1 className="text-5xl font-bold tracking-tight text-slate-900 uppercase" style={{ fontFamily: 'Times New Roman' }}>DAMJI-TRANS S.A.R.L</h1>
                                     <p className="text-base font-bold text-slate-900 mt-2 uppercase tracking-widest">TRANSPORT NATIONAL ET INTERNATIONAL</p>
                                     <p className="text-xs text-slate-700 mt-2 font-medium">RC N°:23883/PATENTE N°:50502638/ IF: 04907266 / ICE : 000226225000015</p>
                                 </div>
-
-                                {/* Date Line */}
                                 <div className="text-right mb-12">
                                     <p className="text-sm font-bold uppercase pr-8">TANGER LE {new Date(invoice.date).toLocaleDateString('fr-FR')}</p>
                                 </div>
-
-                                {/* Invoice Title */}
                                 <div className="text-center mb-12">
                                     <h2 className="text-3xl font-bold uppercase inline-block border-b-2 border-slate-900 pb-1 px-4">FACTURE N° {invoice.transportInvoiceNumber || '286/25'}</h2>
                                 </div>
-
-                                {/* Client Info */}
                                 <div className="mb-10 px-4">
                                     <p className="text-lg font-bold">
                                         <span className="inline-block border-b-2 border-slate-900 pb-0.5">CLIENT: {invoice.clientId.toUpperCase()}</span>
                                         <span className="ml-4 uppercase">{invoice.clientAddress.toUpperCase()}</span>
                                     </p>
                                 </div>
-
-                                {/* Main Table Structure */}
                                 <div className="w-full border-2 border-slate-900 mb-8 max-w-2xl mx-auto">
                                     <div className="flex border-b-2 border-slate-900 font-bold bg-slate-50/20">
                                         <div className="w-[70%] py-1 text-center border-r-2 border-slate-900 text-sm">DESIGNATION</div>
@@ -1040,7 +1071,7 @@ const App: React.FC = () => {
                                     </div>
                                     <div className="flex min-h-[140px]">
                                         <div className="w-[70%] p-4 border-r-2 border-slate-900 relative">
-                                            <p className="font-bold mb-6 text-sm">FRAIS DE TRANSPORT : <span className="uppercase text-base ml-2">TANGER - {destinationCity}</span></p>
+                                            <p className="font-bold mb-6 text-sm">FRAIS DE TRANSPORT : <span className="uppercase text-base ml-2">{invoice.isTransportValidated ? (invoice.trajetRuta || `TANGER - ${destinationCity.toUpperCase()}`) : `TANGER - ${destinationCity.toUpperCase()}`}</span></p>
                                             <p className="font-bold absolute bottom-4 left-4 text-xs">C/R : {invoice.trailer.toUpperCase() || '18905 B 40 / 6962 08'}</p>
                                         </div>
                                         <div className="w-[30%] p-4 text-center">
@@ -1052,26 +1083,20 @@ const App: React.FC = () => {
                                         <div className="w-[30%] py-1 text-center text-sm">{formatEuro(invoice.transportAmount || 0)}</div>
                                     </div>
                                 </div>
-
-                                {/* Amount in Words */}
                                 <div className="mt-8 px-4 space-y-4">
                                     <p className="text-xs font-medium uppercase">ARRETEE LA PRESENTE FACTURE A LA SOMME DE :</p>
                                     <p className="text-base font-bold uppercase tracking-tight">{numberToWordsFR(invoice.transportAmount || 0)}.</p>
                                 </div>
-
-                                {/* Bank and Payment */}
                                 <div className="mt-20 text-center space-y-2">
                                     <p className="text-xs font-medium uppercase font-black">PAYEMENT PAR VIREMENT COMPTE <span className="font-bold ml-2">RIB: 011640000001210000390801</span></p>
                                     <p className="text-sm font-bold uppercase font-black">CODE SWIFT : BMCEMAMCXXX</p>
                                     <p className="text-xs font-medium uppercase font-black">BANQUE OF AFRICA</p>
                                     <p className="text-xs font-medium uppercase font-black">AGENCE TANGER VILLE</p>
                                 </div>
-
-                                {/* Footer Contact */}
                                 <div className="absolute bottom-10 left-0 w-full px-12">
                                     <div className="border-t border-slate-900 border-dashed pt-4">
                                         <p className="text-[10px] font-medium text-slate-600 text-center leading-relaxed font-bold">
-                                            PORT DE PECHE TANGER TEL: +(212)539933525/+(212)539934101 FAX:+(212)539930407/+(212)539948403
+                                            PORT DE PECHE TANGER TEL: +(212)539933525 FAX:+(212)539930407
                                         </p>
                                     </div>
                                 </div>
@@ -1083,31 +1108,48 @@ const App: React.FC = () => {
 
             {modalMode !== 'none' && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border animate-in zoom-in-95">
+                    <div className={`bg-white rounded-3xl shadow-2xl w-full overflow-hidden border animate-in zoom-in-95 max-w-md`}>
                         <div className="bg-slate-50 p-6 border-b flex justify-between items-center">
-                            <h3 className="font-black text-slate-800 uppercase tracking-widest text-sm">Nouveau {modalMode}</h3>
-                            <button onClick={() => setModalMode('none')} className="p-2 hover:bg-slate-200 rounded-full"><X className="w-5 h-5 text-slate-400" /></button>
+                            <h3 className="font-black text-slate-800 uppercase tracking-widest text-sm flex items-center gap-2">
+                                <PlusCircle className="w-5 h-5 text-indigo-500" />
+                                Nouveau {modalMode}
+                            </h3>
+                            <button onClick={() => setModalMode('none')} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
                         </div>
-                        <div className="p-6 space-y-5">
-                            {modalMode === 'product' && (
-                                <>
-                                    <input type="text" value={newProd.name} onChange={e => setNewProd(p => ({...p, name: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 uppercase font-bold" placeholder="Nom Espèce" />
-                                    <input type="text" value={newProd.latin} onChange={e => setNewProd(p => ({...p, latin: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 italic" placeholder="Nom Latin" />
-                                </>
-                            )}
-                            {modalMode === 'client' && (
-                                <>
-                                    <input type="text" value={newClient.name} onChange={e => setNewClient(p => ({...p, name: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold" placeholder="Raison Sociale" />
-                                    <textarea value={newClient.address} onChange={e => setNewClient(p => ({...p, address: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 h-24" placeholder="Adresse" />
-                                </>
-                            )}
-                            {modalMode === 'transport' && (
-                                <input type="text" value={newTransport} onChange={e => setNewTransport(e.target.value)} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold" placeholder="Nom du Transporteur" />
-                            )}
+                        
+                        <div className="p-6">
+                            <div className="space-y-5">
+                                {modalMode === 'product' && (
+                                    <>
+                                        <input type="text" value={newProd.name} onChange={e => setNewProd(p => ({...p, name: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 uppercase font-bold" placeholder="Nom Espèce" />
+                                        <input type="text" value={newProd.latin} onChange={e => setNewProd(p => ({...p, latin: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 italic" placeholder="Nom Latin" />
+                                    </>
+                                )}
+                                {modalMode === 'client' && (
+                                    <>
+                                        <input type="text" value={newClient.name} onChange={e => setNewClient(p => ({...p, name: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold" placeholder="Raison Sociale" />
+                                        <textarea value={newClient.address} onChange={e => setNewClient(p => ({...p, address: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 h-24" placeholder="Adresse" />
+                                    </>
+                                )}
+                                {modalMode === 'transport' && (
+                                    <>
+                                        <input type="text" value={newTransport.name} onChange={e => setNewTransport(p => ({...p, name: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold" placeholder="Nom du Transporteur" />
+                                        <textarea value={newTransport.address} onChange={e => setNewTransport(p => ({...p, address: e.target.value}))} className="w-full px-4 py-2 border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 h-24" placeholder="Adresse du Transporteur" />
+                                    </>
+                                )}
+                            </div>
                         </div>
+
                         <div className="p-6 bg-slate-50 border-t flex justify-end gap-3">
-                            <button onClick={() => setModalMode('none')} className="px-5 py-2.5 font-bold text-slate-500">Annuler</button>
-                            <button onClick={() => { if (modalMode === 'product') addCustomProduct(); else if (modalMode === 'client') addCustomClient(); else if (modalMode === 'transport') addCustomTransport(); }} className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black uppercase">Enregistrer</button>
+                            <button onClick={() => setModalMode('none')} className="px-6 py-3 font-black text-slate-500 hover:bg-slate-200 rounded-xl transition-colors uppercase text-xs">
+                                Annuler
+                            </button>
+                            <button 
+                                onClick={() => { if (modalMode === 'product') addCustomProduct(); else if (modalMode === 'client') addCustomClient(); else if (modalMode === 'transport') addCustomTransport(); }} 
+                                className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 text-xs"
+                            >
+                                Enregistrer
+                            </button>
                         </div>
                     </div>
                 </div>

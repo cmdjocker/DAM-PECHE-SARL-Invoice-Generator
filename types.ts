@@ -23,12 +23,19 @@ export interface Client {
   address: string;
 }
 
+export interface Transporter {
+  id: string;
+  name: string;
+  address: string;
+}
+
 export interface InvoiceData {
   invoiceNumber: string;
   date: string;
   clientId: string;
   clientAddress: string;
   transport: string;
+  transportAddress?: string; // Added to store transporter address
   trailer: string;
   exchangeRate: number;
   incoterm: string;
@@ -36,8 +43,11 @@ export interface InvoiceData {
   // New fields for transport invoice
   transportInvoiceNumber?: string;
   transportAmount?: number;
+  trajetRuta?: string; // Added for transport route
+  isTransportValidated?: boolean; // Added for transport validation state
   // Manual field for Note d'embarquement
   noteChargeur?: string;
+  cargadorAgente?: string; // Added for Note de navire
 }
 
 export interface AIParsedItem {

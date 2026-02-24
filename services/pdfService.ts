@@ -216,6 +216,13 @@ export const generateCMRPDF = (data: InvoiceData, products: Product[]) => {
     const doc = new jsPDF();
     const formattedDate = new Date(data.date).toLocaleDateString('fr-FR');
     
+    // Extract city and country from address
+    const parts = data.clientAddress.split(',').map(p => p.trim());
+    const lastPart = parts[parts.length - 1] || '';
+    const lastParts = lastPart.split(' ').map(p => p.trim()).filter(Boolean);
+    const country = lastParts[lastParts.length - 1] || 'ESPAGNE';
+    const city = lastParts[lastParts.length - 2] || 'VALENCIA';
+
     // Header
     doc.setFontSize(12);
     doc.setFont('times', 'bold');
@@ -227,18 +234,20 @@ export const generateCMRPDF = (data: InvoiceData, products: Product[]) => {
     doc.setFontSize(12);
     doc.setFont('times', 'bold');
     doc.text(data.clientId, 20, 45);
-    doc.text('VALENCIA', 20, 50);
-    doc.text('ESPAGNE', 20, 55);
+    doc.text(city.toUpperCase(), 20, 50);
+    doc.text(country.toUpperCase(), 20, 55);
 
     doc.text(data.transport.toUpperCase(), 120, 45);
-    doc.text('PORT DE PECHE TANGER', 120, 50);
+    if (data.transportAddress) {
+        doc.text(data.transportAddress.toUpperCase(), 120, 50);
+    }
     doc.setFontSize(10);
     doc.text(`Matricule: ${data.trailer || ''}`, 120, 68);
 
     // Metadata
     doc.setFontSize(12);
     doc.setFont('times', 'normal');
-    doc.text('Valencia Espagne', 20, 75);
+    doc.text(`${city} ${country}`, 20, 75);
     doc.text(`Tanger, le ${formattedDate}`, 20, 90);
     doc.text('Facture + EUR 1', 20, 110);
 
@@ -337,7 +346,7 @@ export const generateNoteNavirePDF = (data: InvoiceData, products: Product[]) =>
     doc.text('Cargador o Agente de Aduanas (Chargeur ou transitaire)', 22, currentY + 26);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text((data.noteChargeur || data.transport).toUpperCase(), (20 + splitX) / 2, currentY + 36, { align: 'center' });
+    doc.text((data.cargadorAgente || data.noteChargeur || data.transport).toUpperCase(), (20 + splitX) / 2, currentY + 36, { align: 'center' });
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
@@ -438,15 +447,21 @@ export const generateTransportInvoicePDF = (data: InvoiceData) => {
     doc.text(splitClient, 20, 95);
 
     const totalEur = data.transportAmount || 0;
-    const parts = data.clientAddress.split(' ');
-    const destinationCity = parts[parts.length - 2] || 'CADIZ';
+    
+    // Extract city from address
+    const parts = data.clientAddress.split(',').map(p => p.trim());
+    const lastPart = parts[parts.length - 1] || '';
+    const lastParts = lastPart.split(' ').map(p => p.trim()).filter(Boolean);
+    const destinationCity = lastParts[lastParts.length - 2] || 'CONIL';
+
+    const trajet = data.isTransportValidated ? (data.trajetRuta || `TANGER - ${destinationCity.toUpperCase()}`) : `TANGER - ${destinationCity.toUpperCase()}`;
 
     autoTable(doc, {
         startY: 110,
         head: [['DESIGNATION', 'MONTANT EUR']],
         body: [
             [{ 
-                content: `\nFRAIS DE TRANSPORT : TANGER - ${destinationCity.toUpperCase()}\n\nC/R : ${data.trailer.toUpperCase()}`,
+                content: `\nFRAIS DE TRANSPORT : ${trajet}\n\nC/R : ${data.trailer.toUpperCase()}`,
                 styles: { minCellHeight: 35, fontStyle: 'bold' } 
             }, { 
                 content: `\n${formatEuro(totalEur)}`, 
